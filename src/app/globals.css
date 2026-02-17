@@ -1,0 +1,30 @@
+@import "tailwindcss";
+
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --viridian:#1EBA8F;--viridian-glow:rgba(30,186,143,0.15);--viridian-soft:rgba(30,186,143,0.08);
+  --night:#00334B;--night-deep:#001E2B;--night-card:#002639;--night-card-hover:#003350;
+  --sandstorm:#F7CE46;--sandstorm-glow:rgba(247,206,70,0.15);
+  --text-primary:#F0F4F8;--text-secondary:#8BA3B8;--text-muted:#5A7A94;
+  --border:rgba(30,186,143,0.12);--border-bright:rgba(30,186,143,0.25);
+  --gradient-card:linear-gradient(145deg,#002639 0%,#003350 100%);
+  --gradient-accent:linear-gradient(135deg,#1EBA8F 0%,#17A07A 100%);
+  --ease-premium:cubic-bezier(0.16, 1, 0.3, 1);
+  --fb-blue:#1877F2;
+}
+body{font-family:'Inter',system-ui,sans-serif;background:var(--night-deep);color:var(--text-primary);min-height:100vh;overflow-x:hidden}
+
+/* Animated background orbs */
+.bg-effects{position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:0}
+.bg-orb{position:absolute;border-radius:50%;filter:blur(80px);opacity:0.3;animation:float 8s ease-in-out infinite}
+.bg-orb-1{width:300px;height:300px;background:var(--viridian);top:-100px;right:-50px}
+.bg-orb-2{width:200px;height:200px;background:var(--sandstorm);bottom:20%;left:-50px;animation-delay:-3s;opacity:0.15}
+@keyframes float{0%,100%{transform:translateY(0) scale(1)}50%{transform:translateY(-30px) scale(1.05)}}
+
+@keyframes fadeSlideUp{from{opacity:0;transform:translateY(30px)}to{opacity:1;transform:translateY(0)}}
+@keyframes pulse{0%,100%{opacity:1;box-shadow:0 0 0 0 rgba(30,186,143,0.4)}50%{opacity:0.7;box-shadow:0 0 0 6px rgba(30,186,143,0)}}
+@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
+
+@media(prefers-reduced-motion:reduce){
+  .bg-orb{animation:none!important}
+}
