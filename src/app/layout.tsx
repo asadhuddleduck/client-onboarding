@@ -4,6 +4,10 @@ import "./globals.css";
 export const metadata: Metadata = {
   title: "Huddle Duck — Connect Your Ad Account",
   description: "Connect your Meta ad account to Huddle Duck in 30 seconds.",
+  icons: {
+    icon: "/favicon.png",
+    apple: "/apple-touch-icon.png",
+  },
 };
 
 export default function RootLayout({
