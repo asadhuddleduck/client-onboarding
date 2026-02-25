@@ -1,4 +1,4 @@
-const META_API_VERSION = "v21.0";
+const META_API_VERSION = "v22.0";
 const META_BASE_URL = `https://graph.facebook.com/${META_API_VERSION}`;
 
 function getAccessToken(): string {
@@ -19,6 +19,12 @@ async function metaFetch(url: string, retries = 5): Promise<any> {
 
     if (!response.ok) {
       const body = await response.text();
+      try {
+        const parsed = JSON.parse(body);
+        if (parsed?.error?.code === 190 || parsed?.error?.type === "OAuthException") {
+          console.error("[meta-api] TOKEN EXPIRED — Meta access token is invalid or expired. Regenerate at https://developers.facebook.com/tools/explorer/");
+        }
+      } catch { /* not JSON, ignore */ }
       throw new Error(`Meta API error ${response.status}: ${body}`);
     }
 
