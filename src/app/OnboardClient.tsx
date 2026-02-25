@@ -80,7 +80,7 @@ export default function OnboardClient({ fbAppId }: { fbAppId: string }) {
         appId: fbAppId,
         cookie: true,
         xfbml: false,
-        version: "v22.0",
+        version: "v24.0",
       });
       setSdkReady(true);
     };
