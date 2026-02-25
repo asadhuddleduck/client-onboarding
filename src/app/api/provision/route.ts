@@ -1,9 +1,14 @@
 import { NextResponse } from "next/server";
+import { verifyAuth } from "@/lib/auth";
 import { provisionClient } from "@/lib/provision";
 
 // POST /api/provision
 // Body: { businessName, adAccountId, adAccountName, businessManagerId?, contactName?, contactEmail? }
 export async function POST(request: Request) {
+  if (!verifyAuth(request)) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   try {
     const body = await request.json();
     const { businessName, adAccountId, adAccountName } = body;

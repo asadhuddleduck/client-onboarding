@@ -7,6 +7,7 @@ export interface ProvisionResult {
   notionPageId: string;
   dashboardUrl: string;
   health: AdAccountHealth;
+  alreadyExists?: boolean;
 }
 
 export async function provisionClient(params: {
@@ -19,6 +20,31 @@ export async function provisionClient(params: {
 }): Promise<ProvisionResult> {
   await ensureSchema();
 
+  // Normalize ad account ID early for consistent duplicate checks
+  const adAccountId = params.adAccountId.startsWith("act_")
+    ? params.adAccountId
+    : `act_${params.adAccountId}`;
+
+  const dashboardsUrl = process.env.CLIENT_DASHBOARDS_URL?.trim();
+
+  // Check for existing client with same ad account (duplicate guard)
+  const existing = await db.execute({
+    sql: `SELECT id, name FROM clients WHERE meta_ad_account_id = ?`,
+    args: [adAccountId],
+  });
+
+  if (existing.rows.length > 0) {
+    const existingClient = existing.rows[0];
+    return {
+      notionPageId: existingClient.id as string,
+      dashboardUrl: dashboardsUrl
+        ? `${dashboardsUrl}/${existingClient.id}`
+        : `/${existingClient.id}`,
+      health: await checkAdAccountHealth(params.adAccountId),
+      alreadyExists: true,
+    };
+  }
+
   // Step 1: Health check
   const health = await checkAdAccountHealth(params.adAccountId);
 
@@ -29,10 +55,6 @@ export async function provisionClient(params: {
   });
 
   // Step 3: Insert into Turso clients table
-  const adAccountId = params.adAccountId.startsWith("act_")
-    ? params.adAccountId
-    : `act_${params.adAccountId}`;
-
   await db.execute({
     sql: `INSERT OR REPLACE INTO clients (id, name, meta_ad_account_id, currency, is_active, client_since)
           VALUES (?, ?, ?, ?, 1, date('now'))`,
@@ -60,7 +82,6 @@ export async function provisionClient(params: {
   });
 
   // Step 5: Trigger backfill on client-dashboards
-  const dashboardsUrl = process.env.CLIENT_DASHBOARDS_URL?.trim();
   const dashboardsSecret = process.env.CLIENT_DASHBOARDS_SECRET?.trim();
 
   if (dashboardsUrl && dashboardsSecret) {

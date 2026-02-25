@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { verifyAuth } from "@/lib/auth";
 import {
   grantPartnerAccess,
   fetchClientBusinessManagers,
@@ -9,6 +10,10 @@ import {
 // POST /api/grant-access
 // Body: { action: "discover" | "grant", clientAccessToken, businessId?, adAccountId? }
 export async function POST(request: Request) {
+  if (!verifyAuth(request)) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   try {
     const body = await request.json();
     const { action, clientAccessToken } = body;

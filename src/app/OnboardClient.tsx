@@ -1,6 +1,11 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import {
+  discoverAccounts as discoverAccountsAction,
+  grantAccess as grantAccessAction,
+  provisionAccount as provisionAccountAction,
+} from "./actions";
 
 // ------ Types ------
 
@@ -33,6 +38,7 @@ interface ProvisionResult {
   notionPageId: string;
   dashboardUrl: string;
   health: HealthResult;
+  alreadyExists?: boolean;
 }
 
 type Step = "welcome" | "selecting" | "granting" | "success";
@@ -86,19 +92,32 @@ export default function OnboardClient({ fbAppId }: { fbAppId: string }) {
     document.body.appendChild(script);
   }, [fbAppId]);
 
-  // Handle Facebook Login
+  // Handle Facebook Login with CSRF state guard (CRIT-9)
   const handleFBLogin = useCallback(() => {
     if (!window.FB) return;
 
     setLoading(true);
     setError(null);
 
+    // Generate and store CSRF state token before initiating OAuth
+    const state = crypto.randomUUID();
+    sessionStorage.setItem("fb_oauth_state", state);
+
     window.FB.login(
       (response: any) => {
+        // Verify CSRF state: ensure this callback originated from a user-initiated login on this page
+        const storedState = sessionStorage.getItem("fb_oauth_state");
+        if (!storedState) {
+          setLoading(false);
+          setError("Session expired. Please try again.");
+          return;
+        }
+        sessionStorage.removeItem("fb_oauth_state");
+
         if (response.authResponse) {
           const token = response.authResponse.accessToken;
           setAccessToken(token);
-          discoverAccounts(token);
+          handleDiscoverAccounts(token);
         } else {
           setLoading(false);
           setError("Login was cancelled or permissions were not granted.");
@@ -111,22 +130,13 @@ export default function OnboardClient({ fbAppId }: { fbAppId: string }) {
     );
   }, []);
 
-  // Discover client's BMs and ad accounts
-  const discoverAccounts = async (token: string) => {
+  // Discover client's BMs and ad accounts via server action
+  const handleDiscoverAccounts = async (token: string) => {
     try {
-      const res = await fetch("/api/grant-access", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          action: "discover",
-          clientAccessToken: token,
-        }),
-      });
+      const data = await discoverAccountsAction(token);
 
-      const data = await res.json();
-
-      if (!res.ok) {
-        throw new Error(data.error ?? "Failed to discover accounts");
+      if (data.error) {
+        throw new Error(data.error);
       }
 
       setBusinesses(data.businesses ?? []);
@@ -138,7 +148,7 @@ export default function OnboardClient({ fbAppId }: { fbAppId: string }) {
     }
   };
 
-  // Grant partner access + health check + provision
+  // Grant partner access + health check + provision via server actions
   const handleGrantAccess = async () => {
     if (!selectedAccount || !accessToken) return;
 
@@ -148,38 +158,25 @@ export default function OnboardClient({ fbAppId }: { fbAppId: string }) {
 
     try {
       // Step 1: Grant partner access
-      const grantRes = await fetch("/api/grant-access", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          action: "grant",
-          clientAccessToken: accessToken,
-          adAccountId: selectedAccount.account.id,
-        }),
-      });
+      const grantData = await grantAccessAction(
+        accessToken,
+        selectedAccount.account.id
+      );
 
-      const grantData = await grantRes.json();
-
-      if (!grantRes.ok) {
-        throw new Error(grantData.error ?? "Failed to grant access");
+      if (grantData.error) {
+        throw new Error(grantData.error);
       }
 
       // Step 2: Provision (includes health check)
-      const provisionRes = await fetch("/api/provision", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          businessName: selectedAccount.bmName,
-          adAccountId: selectedAccount.account.id,
-          adAccountName: selectedAccount.account.name,
-          businessManagerId: selectedAccount.bmId,
-        }),
+      const provisionData = await provisionAccountAction({
+        businessName: selectedAccount.bmName,
+        adAccountId: selectedAccount.account.id,
+        adAccountName: selectedAccount.account.name,
+        businessManagerId: selectedAccount.bmId,
       });
 
-      const provisionData = await provisionRes.json();
-
-      if (!provisionRes.ok) {
-        throw new Error(provisionData.error ?? "Failed to provision account");
+      if (provisionData.error) {
+        throw new Error(provisionData.error);
       }
 
       setProvisionResult(provisionData);

@@ -1,9 +1,14 @@
 import { NextResponse } from "next/server";
+import { verifyAuth } from "@/lib/auth";
 import { checkAdAccountHealth } from "@/lib/meta-health";
 
 // POST /api/health-check
 // Body: { adAccountId: "act_XXXXXXXXX" }
 export async function POST(request: Request) {
+  if (!verifyAuth(request)) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   try {
     const body = await request.json();
     const { adAccountId } = body;
